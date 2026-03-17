@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Convertidor de LaTeX a Word</title>
+    
+    <!-- Fonts importades del teu disseny original -->
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Crimson+Pro:wght@300;600;800&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind per la maquetació ràpida amb configuració personalitzada -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        bgPrimary: '#0a0e27',
+                        bgSecondary: '#151933',
+                        bgTertiary: '#1e2340',
+                        accentPrimary: '#00ff88',
+                        accentSecondary: '#ff0080',
+                        accentTertiary: '#00d4ff',
+                    },
+                    fontFamily: {
+                        mono: ['"JetBrains Mono"', 'monospace'],
+                        serif: ['"Crimson Pro"', 'serif'],
+                        sans: ['system-ui', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Configuració de MathJax -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            startup: { typeset: false }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <style>
+        /* Personalització del scrollbar estil neó */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-tertiary); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #00d4ff; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #00ff88; }
+
+        /* Estils pel full previsualitzat (ha de semblar un foli blanc clàssic) */
+        .document-preview {
+            font-family: "Times New Roman", Times, serif;
+            color: #000;
+            line-height: 1.6;
+            background-color: white;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        .document-preview h1 { font-size: 1.5em; font-weight: bold; margin-top: 1.5em; margin-bottom: 0.5em; }
+        .document-preview h2 { font-size: 1.25em; font-weight: bold; margin-top: 1.2em; margin-bottom: 0.5em; }
+        .document-preview h3 { font-size: 1.1em; font-weight: bold; margin-top: 1em; margin-bottom: 0.5em; }
+        .document-preview p { margin-bottom: 1em; }
+        .document-preview ul { list-style-type: disc; margin-left: 2em; margin-bottom: 1em; }
+        .document-preview hr { border: 0; border-top: 1px solid #ccc; margin: 1.5em 0; }
+        
+        /* Efectes neó */
+        .glow-primary { box-shadow: 0 0 10px rgba(0, 255, 136, 0.2); border-color: rgba(0, 255, 136, 0.4); }
+        .glow-primary:focus-within { box-shadow: 0 0 15px rgba(0, 255, 136, 0.4); border-color: #00ff88; }
+        .glow-tertiary { box-shadow: 0 0 10px rgba(0, 212, 255, 0.2); }
+    </style>
+</head>
+<body class="bg-bgPrimary text-gray-200 min-h-screen p-4 md:p-8 flex flex-col">
+
+    <div class="max-w-7xl mx-auto w-full flex-grow">
+        
+        <!-- Capçalera -->
+        <header class="mb-8 text-center md:text-left">
+            <h1 class="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-accentPrimary to-accentTertiary tracking-tight mb-2">Convertidor de LaTeX a Word</h1>
+            <p class="text-gray-400 font-serif text-lg">Processament visual i exportació de documents amb format acadèmic.</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            
+            <!-- Columna Esquerra: Editor LaTeX -->
+            <div class="bg-bgSecondary rounded-xl p-5 flex flex-col h-[70vh] border border-bgTertiary glow-primary transition-all duration-300">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-bold text-accentPrimary flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="m10 13-2 2 2 2"/><path d="m14 17 2-2-2-2"/></svg>
+                        Codi Font LaTeX
+                    </h2>
+                    <button onclick="renderPreview()" class="bg-accentPrimary text-bgPrimary hover:bg-green-400 font-bold py-2 px-4 rounded-lg transition-all shadow-[0_0_10px_rgba(0,255,136,0.3)] hover:shadow-[0_0_20px_rgba(0,255,136,0.6)]">
+                        Renderitzar Fórmules
+                    </button>
+                </div>
+                <textarea id="latex-input" class="flex-1 w-full p-4 rounded-lg font-mono text-sm bg-bgTertiary text-gray-300 resize-none outline-none border border-transparent" spellcheck="false" placeholder="Enganxa aquí el teu codi LaTeX..."></textarea>
+            </div>
+
+            <!-- Columna Dreta: Previsualització i Resultat -->
+            <div class="bg-bgSecondary rounded-xl p-5 flex flex-col h-[70vh] border border-bgTertiary glow-tertiary">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-bold text-accentTertiary flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2"/><path d="M8 17h2"/><path d="M14 13h2"/><path d="M14 17h2"/></svg>
+                        Vista Prèvia i Exportació
+                    </h2>
+                    <div class="flex gap-3">
+                        <button onclick="copyToClipboard()" class="border border-accentTertiary text-accentTertiary hover:bg-accentTertiary hover:text-bgPrimary font-bold py-2 px-4 rounded-lg transition-all flex items-center gap-2">
+                            Copiar
+                        </button>
+                        <button onclick="downloadDoc()" class="bg-accentSecondary text-white hover:opacity-80 font-bold py-2 px-4 rounded-lg transition-all shadow-[0_0_10px_rgba(255,0,128,0.3)] hover:shadow-[0_0_20px_rgba(255,0,128,0.6)] flex items-center gap-2">
+                            Descarregar .doc
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="preview-wrapper" class="flex-1 overflow-auto rounded-lg bg-gray-800 relative p-4 border border-bgTertiary">
+                    <!-- Overlay de càrrega -->
+                    <div id="loading-overlay" class="absolute inset-0 bg-bgPrimary/80 flex items-center justify-center z-10 hidden rounded-lg backdrop-blur-sm">
+                        <div class="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-accentPrimary"></div>
+                    </div>
+                    <!-- Contingut previsualitzat (Foli blanc) -->
+                    <div id="preview-content" class="document-preview p-8 max-w-[21cm] mx-auto min-h-full rounded-sm">
+                        <p class="text-gray-500 font-sans text-center mt-10">Fes clic a "Renderitzar Fórmules" per processar el document.</p>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+
+    <!-- FOOTER DEMANAT -->
+    <footer class="mt-12 text-center pb-6">
+        <p class="text-gray-400 font-serif italic tracking-wide">
+            Creat per <span class="text-accentPrimary font-bold not-italic">Salvador Cervera</span> per la comunitat amb <span class="text-accentSecondary not-italic animate-pulse">❤️</span>
+        </p>
+    </footer>
+
+    <!-- Codi Javascript -->
+    <script>
+        const defaultLatexText = String.raw`\documentclass[11pt, a4paper]{article}
+
+% --- UNIVERSAL PREAMBLE BLOCK ---
+\usepackage[a4paper, top=2.5cm, bottom=2.5cm, left=2cm, right=2cm]{geometry}
+\usepackage{fontspec}
+
+\usepackage[catalan, bidi=basic, provide=*]{babel}
+
+\babelprovide[import, onchar=ids fonts]{catalan}
+\babelprovide[import, onchar=ids fonts]{english}
+
+\babelfont{rm}{Noto Sans}
+\usepackage{enumitem}
+\setlist[itemize]{label=-}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+\begin{document}
+
+\begin{center}
+    {\Large \textbf{Resolució i Discussió de Circuit de Corrent Altern}}
+\end{center}
+\vspace{0.5cm}
+
+\section*{1. Resolució inicial de l'exercici}
+
+\subsection*{a) La mesura de l'amperímetre A2}
+El wattímetre ($W_1$) mesura la potència activa total ($P$) consumida pel circuit. Com que només les resistències consumeixen potència activa, la potència total serà la suma de la potència consumida per $R_1$ i $R_2$.
+
+\vspace{0.3cm}
+\noindent \textbf{1. Calculem la potència consumida per R1 ($P_{R1}$):}\\
+Sabem que el corrent total que travessa $R_1$ és el que marca l'amperímetre $A_1$ (5 A).
+\[ P_{R1} = I_1^2 \cdot R_1 = 5^2 \cdot 10 = 250\text{ W} \]
+
+\noindent \textbf{2. Calculem la potència consumida per R2 ($P_{R2}$):}\\
+Restem la potència de $R_1$ a la potència total llegida pel wattímetre.
+\[ P_{R2} = W_1 - P_{R1} = 490 - 250 = 240\text{ W} \]
+
+\noindent \textbf{3. Calculem el corrent que travessa R2 ($I_2$, mesura de A2):}\\
+A partir de la fórmula de la potència per a la resistència $R_2$, aïllem $I_2$:
+\[ P_{R2} = I_2^2 \cdot R_2 \implies I_2 = \sqrt{\frac{P_{R2}}{R_2}} = \sqrt{\frac{240}{15}} = \sqrt{16} = 4\text{ A} \]
+
+\noindent \textbf{La mesura de l'amperímetre A2 és de 4 A.}
+
+\subsection*{b) La mesura de l'amperímetre A3}
+
+\noindent \textbf{1. Calculem la tensió del bloc en paral·lel ($V_p$):}
+\[ V_p = I_2 \cdot R_2 = 4 \cdot 15 = 60\text{ V} \]
+
+\vspace{0.2cm}
+\noindent \textbf{2. Calculem el corrent per X3 ($I_3$, mesura de A3):}
+\[ I_3 = \frac{V_p}{X_3} = \frac{60}{20} = 3\text{ A} \]
+
+\noindent \textbf{La mesura de l'amperímetre A3 és de 3 A.}
+
+\subsection*{c) La potència reactiva Q proporcionada per la font $U_1$}
+Tota la potència reactiva subministrada per la font és la que consumeix la bobina $X_3$.
+\[ Q = I_3^2 \cdot X_3 = 3^2 \cdot 20 = 9 \cdot 20 = 180\text{ VAr} \]
+
+\noindent \textbf{La potència reactiva Q proporcionada per la font és de 180 VAr.}
+
+\vspace{0.5cm}
+\hrule
+\vspace{0.5cm}
+
+\section*{2. Discussió sobre la resta de voltatges en AC}
+
+\noindent \textbf{Alumne:} La caiguda de voltatge de 60 V també s'hauria pogut calcular partint del voltatge total i sabent la caiguda a la resistència de R1?
+
+\vspace{0.2cm}
+\noindent \textbf{Resposta:} No, en aquest cas no es pot calcular així amb una resta simple. En corrent altern (AC), com que tenim una bobina ($X_3$), hi ha un desfasament. Els voltatges són vectors (fasors) i s'han de sumar o restar geomètricament. 
+
+\vspace{0.2cm}
+\noindent Si fem la demostració vectorial:
+\begin{itemize}
+    \item \textbf{Voltatge actiu:} 60 V (paral·lel) + 40 V ($R_1$) = 100 V
+    \item \textbf{Voltatge reactiu:} 30 V ($R_1$)
+    \item \textbf{Voltatge total $U_1$:}
+\end{itemize}
+\[ U_1 = \sqrt{100^2 + 30^2} = \sqrt{10900} \approx 104,4\text{ V} \]
+
+\vspace{0.5cm}
+\hrule
+\vspace{0.5cm}
+
+\section*{3. Càlcul mitjançant impedàncies complexes}
+
+\noindent \textbf{Alumne:} Si calcules la impedància de les resistències en paral·lel i el voltatge total com a suma vectorial de la caiguda a R1 i a la impedància total del paral·lel, hauria de donar igual.
+
+\vspace{0.2cm}
+\noindent \textbf{Resposta:} Tens tota la raó. Aquesta és la manera més rigorosa.
+
+\vspace{0.2cm}
+\noindent Calculem la impedància del paral·lel ($Z_p$):
+\[ Z_p = \frac{R_2 \cdot jX_3}{R_2 + jX_3} = \frac{15 \cdot j20}{15 + j20} = 9,6 + j7,2\text{ }\Omega \]
+
+\noindent Mòdul de la impedància:
+\[ |Z_p| = \sqrt{9,6^2 + 7,2^2} = 12\text{ }\Omega \]
+
+\noindent Caiguda al paral·lel: $V_p = I_1 \cdot |Z_p| = 5 \cdot 12 = 60\text{ V}$.
+
+\vspace{0.2cm}
+\noindent Si prenem $I_1$ com a referència ($0^\circ$):
+\begin{itemize}
+    \item Voltatge a $R_1$: $\vec{V}_{R1} = I_1 \cdot R_1 = 5 \cdot 10 = 50\text{ V}$
+    \item Voltatge al paral·lel: $\vec{V}_p = I_1 \cdot Z_p = 5 \cdot (9,6 + j7,2) = 48 + j36\text{ V}$
+\end{itemize}
+
+\noindent Voltatge total ($\vec{U}_1$):
+\[ \vec{U}_1 = \vec{V}_{R1} + \vec{V}_p = 50 + (48 + j36) = 98 + j36\text{ V} \]
+
+\noindent Mòdul total: 
+\[ |\vec{U}_1| = \sqrt{98^2 + 36^2} = \sqrt{10900} \approx 104,4\text{ V} \]
+
+\vspace{0.5cm}
+\hrule
+\vspace{0.5cm}
+
+\section*{4. El teorema de Pitàgores amb voltatges}
+
+\noindent \textbf{Alumne:} Per tant si haguéssim fet $U_1^2 - V_{R1}^2 = V_p^2$ hauríem pogut treure 60 V?
+
+\vspace{0.2cm}
+\noindent \textbf{Resposta:} No funcionaria aquí. La fórmula $U_1^2 - V_{R1}^2 = V_p^2$ només és vàlida si els dos vectors de tensió formen un angle exacte de $90^\circ$. 
+
+\vspace{0.2cm}
+\noindent Comprovació:
+\[ 104,4^2 - 50^2 \approx 10900 - 2500 = 8400 \]
+\[ \sqrt{8400} \approx 91,65\text{ V} \neq 60\text{ V} \]
+
+\noindent El bloc en paral·lel no és purament reactiu. Té un angle inclinat ($\approx 36,9^\circ$). Per relacionar els mòduls directament, s'hauria d'utilitzar el teorema del cosinus:
+\[ U_1^2 = V_{R1}^2 + V_p^2 - 2 \cdot V_{R1} \cdot V_p \cdot \cos(\alpha) \]
+
+\end{document}`;
+
+        function showMessage(msg, isError = false) {
+            const toast = document.createElement('div');
+            toast.className = `fixed bottom-4 right-4 px-6 py-3 rounded-lg shadow-lg text-white font-mono text-sm ${isError ? 'bg-accentSecondary' : 'bg-bgTertiary border border-accentPrimary'} transition-opacity duration-300 z-50 shadow-[0_0_10px_rgba(0,255,136,0.3)]`;
+            toast.textContent = msg;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => document.body.removeChild(toast), 300);
+            }, 3000);
+        }
+
+        function parseLatex(tex) {
+            let body = tex;
+            const bodyMatch = tex.match(/\\begin\{document\}([\s\S]*?)\\end\{document\}/);
+            if (bodyMatch) body = bodyMatch[1];
+
+            body = body.replace(/\\begin\{center\}([\s\S]*?)\\end\{center\}/g, '<div style="text-align: center;">$1</div>');
+            body = body.replace(/\{\\Large\s+((?:[^{}]|\{[^{}]*\})*)\}/g, '<span style="font-size: 1.5em; font-weight: bold;">$1</span>');
+            body = body.replace(/\\section\*?\{((?:[^{}]|\{[^{}]*\})*)\}/g, '<h1>$1</h1>');
+            body = body.replace(/\\subsection\*?\{((?:[^{}]|\{[^{}]*\})*)\}/g, '<h2>$1</h2>');
+            body = body.replace(/\\subsubsection\*?\{((?:[^{}]|\{[^{}]*\})*)\}/g, '<h3>$1</h3>');
+            body = body.replace(/\\textbf\{((?:[^{}]|\{[^{}]*\})*)\}/g, '<strong>$1</strong>');
+            body = body.replace(/\\textit\{((?:[^{}]|\{[^{}]*\})*)\}/g, '<em>$1</em>');
+            
+            body = body.replace(/\\noindent/g, '');
+            body = body.replace(/\\vspace\{[^}]+\}/g, '<br/>');
+            body = body.replace(/\\hrule/g, '<hr/>');
+            body = body.replace(/\\\\/g, '<br/>');
+            
+            body = body.replace(/\\begin\{itemize\}/g, '<ul>');
+            body = body.replace(/\\end\{itemize\}/g, '</ul>');
+            body = body.replace(/\\item\s+(.*?)(?=(?:\\item|\\end\{itemize\}|<ul|<\/ul>))/gs, '<li>$1</li>'); 
+
+            const parts = body.split(/\n\s*\n/);
+            body = parts.map(part => {
+                const trimmed = part.trim();
+                if (!trimmed) return '';
+                if (trimmed.match(/^(<h|<div|<ul|<hr)/)) { return trimmed; }
+                return `<p>${trimmed}</p>`;
+            }).join('\n');
+
+            return body;
+        }
+
+        function renderPreview() {
+            const loading = document.getElementById('loading-overlay');
+            const input = document.getElementById('latex-input').value;
+            const previewEl = document.getElementById('preview-content');
+            
+            if(!input.trim()) {
+                showMessage("L'editor LaTeX està buit.", true);
+                return;
+            }
+
+            loading.classList.remove('hidden');
+            const htmlContent = parseLatex(input);
+            previewEl.innerHTML = htmlContent;
+            
+            if (window.MathJax && window.MathJax.typesetPromise) {
+                MathJax.typesetPromise([previewEl]).then(() => {
+                    loading.classList.add('hidden');
+                    showMessage("✔ Fórmules compilades i processades amb èxit!");
+                }).catch((err) => {
+                    loading.classList.add('hidden');
+                    showMessage("Error en processar algunes de les fórmules.", true);
+                    console.error(err);
+                });
+            } else {
+                loading.classList.add('hidden');
+            }
+        }
+
+        function downloadDoc() {
+            const previewEl = document.getElementById('preview-content');
+            if(!previewEl.innerHTML.trim() || previewEl.innerText.includes("Fes clic a")) {
+                showMessage("Processa primer el document abans d'exportar-lo.", true);
+                return;
+            }
+
+            const header = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Document Exportat</title><style>body { font-family: "Times New Roman", Times, serif; font-size: 11pt; line-height: 1.5; } h1 { font-size: 16pt; font-weight: bold; margin-top: 18pt; margin-bottom: 6pt; } h2 { font-size: 14pt; font-weight: bold; margin-top: 14pt; margin-bottom: 4pt; } h3 { font-size: 12pt; font-weight: bold; margin-top: 12pt; margin-bottom: 2pt; } p { margin-bottom: 10pt; } ul { margin-left: 20pt; margin-bottom: 10pt; }</style></head><body>`;
+            const footer = "</body></html>";
+            const html = header + previewEl.innerHTML + footer;
+            
+            const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'Resolucio_Circuit_AC.doc';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showMessage('✔ Descarregant el fitxer de Word...');
+        }
+
+        function copyToClipboard() {
+            const previewEl = document.getElementById('preview-content');
+            if(!previewEl.innerHTML.trim() || previewEl.innerText.includes("Fes clic a")) {
+                showMessage("Processa primer el document abans de copiar-lo.", true);
+                return;
+            }
+            
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = previewEl.innerHTML;
+            tempDiv.style.position = 'absolute';
+            tempDiv.style.left = '-9999px';
+            document.body.appendChild(tempDiv);
+            
+            const selection = window.getSelection();
+            const range = document.createRange();
+            range.selectNodeContents(tempDiv);
+            selection.removeAllRanges();
+            selection.addRange(range);
+            
+            try {
+                document.execCommand('copy');
+                showMessage('✔ Copiat al porta-retalls! Ja ho pots enganxar (Ctrl+V) al Word.');
+            } catch (e) {
+                showMessage('El navegador no permet copiar-ho directament.', true);
+            }
+            
+            selection.removeAllRanges();
+            document.body.removeChild(tempDiv);
+        }
+
+        window.onload = () => {
+            document.getElementById('latex-input').value = defaultLatexText;
+        };
+    </script>
+</body>
+</html>
